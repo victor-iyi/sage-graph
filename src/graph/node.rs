@@ -10,7 +10,7 @@ pub struct Node<N, Idx = DefaultIdx> {
   pub weight: N,
 
   /// Next edge in outgoing and incoming edge lists.
-  next: [EdgeIndex<Idx>; 2],
+  pub(crate) next: [EdgeIndex<Idx>; 2],
 }
 
 impl<N, Idx> Clone for Node<N, Idx>
