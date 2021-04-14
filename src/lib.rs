@@ -9,3 +9,6 @@ pub use crate::graph::{
   node::Node,
   DiGraph, Graph, UnDiGraph,
 };
+
+#[allow(unused_imports)]
+pub(crate) use iterator::format;
