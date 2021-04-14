@@ -1,7 +1,10 @@
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
-}
+mod error;
+mod graph;
+mod macros;
+
+pub use crate::error::{Error, ErrorKind, Result};
+pub use crate::graph::{
+  edge::{Edge, EdgeDirection},
+  node::Node,
+  DiGraph, Graph, UnDiGraph,
+};
