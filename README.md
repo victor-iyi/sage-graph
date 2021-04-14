@@ -2,6 +2,9 @@
 
 > A graph library written for [Sage Knwoledge Graph][sage]
 
+![CI](https://github.com/victor-iyi/sage-graph/workflows/CI/badge.svg)
+![Audit](https://github.com/victor-iyi/sage-graph/workflows/Audit/badge.svg)
+
 Sage is a graph library written in Rust for the [Sage Knowledge Graph][sage] by
 [Victor I. Afolabi][author] for fast traversal, easy representation of items on
 the graph.
