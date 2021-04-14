@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::{fmt, hash::Hash};
 
 /// Graph's default index.
@@ -163,7 +165,7 @@ impl<Idx: Index> EdgeIndex<Idx> {
     EdgeIndex(Index::max())
   }
 
-  fn into_node(self) -> NodeIndex<Idx> {
+  pub(crate) fn into_node(self) -> NodeIndex<Idx> {
     NodeIndex(self.0)
   }
 }
