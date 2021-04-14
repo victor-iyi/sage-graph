@@ -5,8 +5,10 @@ pub mod node;
 
 use std::fmt;
 use std::marker::PhantomData;
+use std::mem::size_of;
 
-use direction::{Directed, Direction, Undirected};
+use crate::iterator::format::{DebugMap, IterFormatExt, NoPretty};
+use direction::{Directed, Undirected};
 use edge::{Edge, EdgeDirection};
 use index::{DefaultIdx, EdgeIndex, Index, NodeIndex};
 use node::Node;
@@ -124,6 +126,37 @@ where
     } else {
       "Undirected"
     };
-    write!(f, "")
+    let mut fmt_struct = f.debug_struct("Graph");
+    fmt_struct.field("direction", &direction);
+    fmt_struct.field("node_count", &self.node_count());
+    fmt_struct.field("edge_count", &self.edge_count());
+
+    if self.edge_count() > 0 {
+      fmt_struct.field(
+        "edges",
+        &self
+          .edges
+          .iter()
+          .map(|e| NoPretty((e.source().index(), e.target().index())))
+          .format(", "),
+      );
+    }
+
+    // skip weights if they are ZST!
+    if size_of::<N>() != 0 {
+      fmt_struct.field(
+        "node_weights",
+        &DebugMap(|| self.nodes.iter().map(|n| &n.weight).enumerate()),
+      );
+    }
+
+    if size_of::<E>() != 0 {
+      fmt_struct.field(
+        "edge_weights",
+        &DebugMap(|| self.edges.iter().map(|e| &e.weight).enumerate()),
+      );
+    }
+
+    fmt_struct.finish()
   }
 }
