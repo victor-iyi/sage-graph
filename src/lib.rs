@@ -5,7 +5,7 @@ mod macros;
 
 pub use crate::error::{Error, ErrorKind, Result};
 pub use crate::graph::{
-  edge::{Edge, EdgeDirection},
+  edge::{Edge, EdgeType},
   node::Node,
   DiGraph, Graph, UnDiGraph,
 };

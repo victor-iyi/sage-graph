@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::hash::Hash;
 
 use crate::copyclone;
@@ -42,11 +40,11 @@ impl Direction {
 }
 
 /// Marker for a directed graph.
-#[derive(Copy, Debug)]
+#[derive(Debug, Copy)]
 pub enum Directed {}
 copyclone!(Directed);
 
 /// Marker for a directed graph.
-#[derive(Copy, Debug)]
+#[derive(Debug, Copy)]
 pub enum Undirected {}
 copyclone!(Undirected);

@@ -1,25 +1,28 @@
-pub mod direction;
-pub mod edge;
-pub mod index;
-pub mod node;
+#![allow(dead_code)]
 
 use std::fmt;
 use std::marker::PhantomData;
 use std::mem::size_of;
 
+pub mod direction;
+pub mod edge;
+pub mod index;
+pub mod neighbor;
+pub mod node;
+
 use crate::iterator::format::{DebugMap, IterFormatExt, NoPretty};
 use direction::{Directed, Direction, Undirected, DIRECTIONS};
-use edge::{Edge, EdgeDirection};
+use edge::{Edge, EdgeType};
 use index::{DefaultIdx, EdgeIndex, Index, NodeIndex};
 use node::Node;
 
 /// [`Graph`] - a graph data structure using an adjacency list representation.
 ///
 /// [`Graph`]: struct.Graph
-pub struct Graph<N, E, D = Directed, Idx = DefaultIdx> {
+pub struct Graph<N, E, T = Directed, Idx = DefaultIdx> {
   nodes: Vec<Node<N, Idx>>,
   edges: Vec<Edge<E, Idx>>,
-  direction: PhantomData<D>,
+  _type: PhantomData<T>,
 }
 
 /// A directed Graph i.e a graph with directed [`Edge`]s.
@@ -32,7 +35,7 @@ pub type DiGraph<N, E, Idx = DefaultIdx> = Graph<N, E, Directed, Idx>;
 /// [`Edge`]: create::Edge
 pub type UnDiGraph<N, E, Idx = DefaultIdx> = Graph<N, E, Undirected, Idx>;
 
-impl<N, E, D, Idx: Index> Clone for Graph<N, E, D, Idx>
+impl<N, E, T, Idx: Index> Clone for Graph<N, E, T, Idx>
 where
   N: Clone,
   E: Clone,
@@ -41,20 +44,20 @@ where
     Graph {
       nodes: self.nodes.clone(),
       edges: self.edges.clone(),
-      direction: self.direction,
+      _type: self._type,
     }
   }
 
   fn clone_from(&mut self, rhs: &Self) {
     self.nodes.clone_from(&rhs.nodes);
     self.edges.clone_from(&rhs.edges);
-    self.direction = rhs.direction;
+    self._type = rhs._type;
   }
 }
 
-impl<N, E, D, Idx> Graph<N, E, D, Idx>
+impl<N, E, T, Idx> Graph<N, E, T, Idx>
 where
-  D: EdgeDirection,
+  T: EdgeType,
   Idx: Index,
 {
   /// Create a new [`Graph`] with estimated capacity.
@@ -62,7 +65,7 @@ where
     Graph {
       nodes: Vec::with_capacity(nodes),
       edges: Vec::with_capacity(edges),
-      direction: PhantomData,
+      _type: PhantomData,
     }
   }
 
@@ -83,7 +86,7 @@ where
   /// Check if graph is a Directed or Undirected graph.
   #[inline]
   pub fn is_directed(&self) -> bool {
-    D::is_directed()
+    T::is_directed()
   }
 
   /// Add a node (also called vertex) with associated data `weight` to the graph.
@@ -295,11 +298,11 @@ where
   }
 }
 
-impl<N, E, D, Idx> fmt::Debug for Graph<N, E, D, Idx>
+impl<N, E, T, Idx> fmt::Debug for Graph<N, E, T, Idx>
 where
   N: fmt::Debug,
   E: fmt::Debug,
-  D: EdgeDirection,
+  T: EdgeType,
   Idx: Index,
 {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -343,6 +346,47 @@ where
   }
 }
 
+impl<N, E> Graph<N, E, Directed> {
+  /// Creates a new directed Graph (i.e graph with directed eges).
+  ///
+  /// This is a convenience method. Use `Graph::with_capacity` or `Graph::default`
+  /// for a constructor that is generic in all the type parameters of Graph.
+  pub fn new() -> Self {
+    Graph {
+      nodes: Vec::new(),
+      edges: Vec::new(),
+      _type: PhantomData,
+    }
+  }
+}
+
+impl<N, E> Default for Graph<N, E> {
+  fn default() -> Self {
+    Self::new()
+  }
+}
+
+impl<N, E> Graph<N, E, Undirected> {
+  /// Creates a new undirected Graph (i.e graph with no directed edges).
+  ///
+  /// This is a convenience method. Use `Graph::with_capacity` or `Graph::default`
+  /// for a constructor that is generic in all the type parameters of Graph.
+  pub fn new_undirected() -> Self {
+    Graph {
+      nodes: Vec::new(),
+      edges: Vec::new(),
+      _type: PhantomData,
+    }
+  }
+}
+
+/// `Fozen` graph only allows shared (read-only) access to `Graph`,
+/// but allows mutable acess to its node and edge associated data.
+///
+/// It ensures immutability of `Graph`'s structure while permitting weights
+/// to be both read & write.
+pub struct Frozen<'a, G: 'a>(&'a mut G);
+
 /// `Pair` two or one values together.
 enum Pair<T> {
   Both(T, T),
@@ -360,37 +404,9 @@ fn index_twice<T>(slice: &mut [T], a: usize, b: usize) -> Pair<&mut T> {
     // SAFETY: a & b are in bounds and distinct.
     unsafe {
       let ptr = slice.as_mut_ptr();
-      let ar = &mut *ptr.offset(a as isize);
-      let br = &mut *ptr.offset(b as isize);
+      let ar = &mut *ptr.add(a);
+      let br = &mut *ptr.add(b);
       Pair::Both(ar, br)
-    }
-  }
-}
-
-impl<N, E> Graph<N, E, Directed> {
-  /// Creates a new directed Graph (i.e graph with directed eges).
-  ///
-  /// This is a convenience method. Use `Graph::with_capacity` or `Graph::default`
-  /// for a constructor that is generic in all the type parameters of Graph.
-  pub fn new() -> Self {
-    Graph {
-      nodes: Vec::new(),
-      edges: Vec::new(),
-      direction: PhantomData,
-    }
-  }
-}
-
-impl<N, E> Graph<N, E, Undirected> {
-  /// Creates a new undirected Graph (i.e graph with no directed edges).
-  ///
-  /// This is a convenience method. Use `Graph::with_capacity` or `Graph::default`
-  /// for a constructor that is generic in all the type parameters of Graph.
-  pub fn new_undirected() -> Self {
-    Graph {
-      nodes: Vec::new(),
-      edges: Vec::new(),
-      direction: PhantomData,
     }
   }
 }

@@ -1,9 +1,12 @@
-use crate::clone_fields;
-use crate::graph::{
+#![allow(dead_code)]
+
+use std::marker::PhantomData;
+
+use super::{
   direction::{Directed, Direction, Undirected},
   index::{edge_index, DefaultIdx, EdgeIndex, Index, NodeIndex},
 };
-use std::marker::PhantomData;
+use crate::clone_fields;
 
 /// Graph' Edge.
 pub struct Edge<E, Idx = DefaultIdx> {
@@ -38,6 +41,16 @@ impl<E, Idx: Index> Edge<E, Idx> {
     self.next[dir.index()]
   }
 
+  /// Returns outgoing edge index.
+  pub fn outgoing(&self) -> EdgeIndex<Idx> {
+    self.next[0]
+  }
+
+  /// Returns incoming edge index.
+  pub fn incoming(&self) -> EdgeIndex<Idx> {
+    self.next[1]
+  }
+
   /// Returns the source node index.
   pub fn source(&self) -> NodeIndex<Idx> {
     self.node[0]
@@ -49,31 +62,36 @@ impl<E, Idx: Index> Edge<E, Idx> {
   }
 }
 
-pub trait EdgeDirection {
+/// EdgeType abstracts if a [`Graph`] is [`DiGraph`] or [`UnDiGraph`].
+///
+/// [`DiGraph`]: enum.DiGraph
+/// [`UnDiGraph`]: enum.UnDiGraph
+/// [`Graph`]: struct.Graph
+pub trait EdgeType {
   fn is_directed() -> bool;
 }
 
-impl EdgeDirection for Directed {
+impl EdgeType for Directed {
   #[inline]
   fn is_directed() -> bool {
     true
   }
 }
 
-impl EdgeDirection for Undirected {
+impl EdgeType for Undirected {
   #[inline]
   fn is_directed() -> bool {
-    true
+    false
   }
 }
 
 /// Iterator over the edges of from or to a node.
-pub struct Edges<'a, E: 'a, D, Idx: 'a = DefaultIdx>
+pub struct Edges<'a, E: 'a, T, Idx: 'a = DefaultIdx>
 where
-  D: EdgeDirection,
+  T: EdgeType,
   Idx: Index,
 {
-  /// starting node to skip over.
+  /// Starting node to skip over.
   skip_start: NodeIndex<Idx>,
   edges: &'a [Edge<E, Idx>],
 
@@ -83,15 +101,18 @@ where
   /// For directed graphs; the direction to iterate in.
   /// For undirected graphs; the direction of edges.
   direction: Direction,
-  d: PhantomData<D>,
+
+  /// Type of graph: directed graph (`DiGraph`)
+  /// or undirected graph: (`UnDiGraph`).
+  _t: PhantomData<T>,
 }
 
-impl<'a, E, D, Idx> Iterator for Edges<'a, E, D, Idx>
+impl<'a, E, T, Idx> Iterator for Edges<'a, E, T, Idx>
 where
-  D: EdgeDirection,
+  T: EdgeType,
   Idx: Index,
 {
-  type Item = EdgeReference<'a, E, Idx>;
+  type Item = EdgeRef<'a, E, Idx>;
 
   fn next(&mut self) -> Option<Self::Item> {
     //   type         direction     |     iterate over    reverse
@@ -103,7 +124,7 @@ where
     //
     // For iterate_over, "both" is represented as None.
     // For revese, "no" is represented as None.
-    let (iterate_over, reverse) = if D::is_directed() {
+    let (iterate_over, reverse) = if T::is_directed() {
       (Some(self.direction), None)
     } else {
       (None, Some(self.direction.opposite()))
@@ -113,7 +134,7 @@ where
       let i = self.next[0].index();
       if let Some(Edge { node, weight, next }) = self.edges.get(i) {
         self.next[0] = next[0];
-        return Some(EdgeReference {
+        return Some(EdgeRef {
           index: edge_index(i),
           node: if reverse == Some(Direction::Outgoing) {
             swap_pair(*node)
@@ -137,7 +158,7 @@ where
           continue;
         }
 
-        return Some(EdgeReference {
+        return Some(EdgeRef {
           index: edge_idx,
           node: if reverse == Some(Direction::Incoming) {
             swap_pair(*node)
@@ -153,10 +174,10 @@ where
   }
 }
 
-impl<'a, E, D, Idx> Clone for Edges<'a, E, D, Idx>
+impl<'a, E, T, Idx> Clone for Edges<'a, E, T, Idx>
 where
   Idx: Index,
-  D: EdgeDirection,
+  T: EdgeType,
 {
   fn clone(&self) -> Self {
     Edges {
@@ -164,30 +185,33 @@ where
       edges: self.edges,
       next: self.next,
       direction: self.direction,
-      d: self.d,
+      _t: self._t,
     }
   }
 }
 
 /// Iterator over the multiple directed edges connecting a source node to a target node.
-pub struct EdgesConnecting<'a, E: 'a, D, Idx: 'a = DefaultIdx>
+pub struct EdgesConnecting<'a, E: 'a, T, Idx: 'a = DefaultIdx>
 where
-  D: EdgeDirection,
+  T: EdgeType,
   Idx: Index,
 {
+  /// Target node which (multiple) connection ends.
   target_node: NodeIndex<Idx>,
-  edges: Edges<'a, E, D, Idx>,
-  d: PhantomData<D>,
+  /// List of edges connected to `EdgesConnecting::target_node`.
+  edges: Edges<'a, E, T, Idx>,
+  /// `EdgeType` directed or undirected.
+  _t: PhantomData<T>,
 }
 
-impl<'a, E, D, Idx> Iterator for EdgesConnecting<'a, E, D, Idx>
+impl<'a, E, T, Idx> Iterator for EdgesConnecting<'a, E, T, Idx>
 where
-  D: EdgeDirection,
+  T: EdgeType,
   Idx: Index,
 {
-  type Item = EdgeReference<'a, E, Idx>;
+  type Item = EdgeRef<'a, E, Idx>;
 
-  fn next(&mut self) -> Option<EdgeReference<'a, E, Idx>> {
+  fn next(&mut self) -> Option<EdgeRef<'a, E, Idx>> {
     while let Some(edge) = self.edges.next() {
       if edge.node[1] == self.target_node {
         return Some(edge);
@@ -199,13 +223,16 @@ where
 
 /// Reference to a `Graph`'s edge.
 #[derive(Debug)]
-pub struct EdgeReference<'a, E: 'a, Idx = DefaultIdx> {
+pub struct EdgeRef<'a, E: 'a, Idx = DefaultIdx> {
+  /// Referencing `Edge`'s index.
   index: EdgeIndex<Idx>,
+  /// Referencing `Edge`'s start and end `Node`.
   node: [NodeIndex<Idx>; 2],
+  /// Reference to `Edge`'s associated data.
   weight: &'a E,
 }
 
-impl<'a, Idx, E> EdgeReference<'a, E, Idx>
+impl<'a, Idx, E> EdgeRef<'a, E, Idx>
 where
   Idx: Index,
 {
@@ -214,15 +241,15 @@ where
   }
 }
 
-impl<'a, E, Idx: Index> Clone for EdgeReference<'a, E, Idx> {
+impl<'a, E, Idx: Index> Clone for EdgeRef<'a, E, Idx> {
   fn clone(&self) -> Self {
     *self
   }
 }
 
-impl<'a, E, Idx: Index> Copy for EdgeReference<'a, E, Idx> {}
+impl<'a, E, Idx: Index> Copy for EdgeRef<'a, E, Idx> {}
 
-impl<'a, E, Idx: Index> PartialEq for EdgeReference<'a, E, Idx>
+impl<'a, E, Idx: Index> PartialEq for EdgeRef<'a, E, Idx>
 where
   E: PartialEq,
 {
@@ -231,19 +258,37 @@ where
   }
 }
 
-/// Iterator over all edges of a graph.
-pub struct EdgeReferences<'a, E: 'a, Idx: Index = DefaultIdx> {
+/// Iterator over all `Edge`s of a `Graph`.
+pub struct EdgeIterator<'a, E: 'a, Idx: Index = DefaultIdx> {
+  /// Inner iterator over `Edge` & it's index (`EdgeIndex`).
   iter: std::iter::Enumerate<std::slice::Iter<'a, Edge<E, Idx>>>,
 }
 
-impl<'a, E, Idx> Iterator for EdgeReferences<'a, E, Idx>
+impl<'a, E, Idx> Iterator for EdgeIterator<'a, E, Idx>
 where
   Idx: Index,
 {
-  type Item = EdgeReference<'a, E, Idx>;
+  type Item = EdgeRef<'a, E, Idx>;
 
   fn next(&mut self) -> Option<Self::Item> {
-    self.iter.next().map(|(i, edge)| EdgeReference {
+    self.iter.next().map(|(i, edge)| EdgeRef {
+      index: edge_index(i),
+      node: edge.node,
+      weight: &edge.weight,
+    })
+  }
+
+  fn size_hint(&self) -> (usize, Option<usize>) {
+    self.iter.size_hint()
+  }
+}
+
+impl<'a, E, Idx> DoubleEndedIterator for EdgeIterator<'a, E, Idx>
+where
+  Idx: Index,
+{
+  fn next_back(&mut self) -> Option<Self::Item> {
+    self.iter.next_back().map(|(i, edge)| EdgeRef {
       index: edge_index(i),
       node: edge.node,
       weight: &edge.weight,
@@ -251,11 +296,13 @@ where
   }
 }
 
+impl<'a, E, Idx> ExactSizeIterator for EdgeIterator<'a, E, Idx> where Idx: Index {}
+
 /// Iterator over the edge indces of a graph.
 #[derive(Clone, Debug)]
 pub struct EdgeIndices<Idx = DefaultIdx> {
   r: std::ops::Range<usize>,
-  t: PhantomData<fn() -> Idx>,
+  _t: PhantomData<fn() -> Idx>,
 }
 
 impl<Idx: Index> Iterator for EdgeIndices<Idx> {

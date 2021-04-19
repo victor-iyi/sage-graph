@@ -1,8 +1,8 @@
-use crate::clone_fields;
-use crate::graph::{
+use super::{
   direction::Direction,
   index::{DefaultIdx, EdgeIndex, Index},
 };
+use crate::clone_fields;
 
 /// Graph's Node type.
 pub struct Node<N, Idx = DefaultIdx> {
