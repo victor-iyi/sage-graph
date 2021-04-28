@@ -107,6 +107,24 @@ where
   _t: PhantomData<T>,
 }
 
+impl<'a, E, T: EdgeType, Idx: Index> Edges<'a, E, T, Idx> {
+  /// Create a new iterator over edges.
+  pub fn new(
+    skip_start: NodeIndex<Idx>,
+    edges: &'a [Edge<E, Idx>],
+    next: [EdgeIndex<Idx>; 2],
+    direction: Direction,
+  ) -> Self {
+    Self {
+      skip_start,
+      edges,
+      next,
+      direction,
+      _t: PhantomData,
+    }
+  }
+}
+
 impl<'a, E, T, Idx> Iterator for Edges<'a, E, T, Idx>
 where
   T: EdgeType,
@@ -204,6 +222,22 @@ where
   _t: PhantomData<T>,
 }
 
+impl<'a, E: 'a, T, Idx: 'a> EdgesConnecting<'a, E, T, Idx>
+where
+  T: EdgeType,
+  Idx: Index,
+{
+  /// Create a new iterator over multiple directed edges connecting
+  /// source node to target node.
+  pub fn new(target_node: NodeIndex<Idx>, edges: Edges<'a, E, T, Idx>) -> Self {
+    Self {
+      target_node,
+      edges,
+      _t: PhantomData,
+    }
+  }
+}
+
 impl<'a, E, T, Idx> Iterator for EdgesConnecting<'a, E, T, Idx>
 where
   T: EdgeType,
@@ -258,10 +292,52 @@ where
   }
 }
 
+/// Iterator yielding mutable access to all edge weights.
+pub struct EdgeWeightsMut<'a, E: 'a, Idx: Index = DefaultIdx> {
+  edges: std::slice::IterMut<'a, Edge<E, Idx>>,
+}
+
+impl<'a, E, Idx> EdgeWeightsMut<'a, E, Idx>
+where
+  Idx: Index,
+{
+  /// Create a new iterator yielding mutable edge weights.
+  pub fn new(edges: std::slice::IterMut<'a, Edge<E, Idx>>) -> Self {
+    Self { edges }
+  }
+}
+
+impl<'a, E, Idx> Iterator for EdgeWeightsMut<'a, E, Idx>
+where
+  Idx: Index,
+{
+  type Item = &'a mut E;
+
+  fn next(&mut self) -> Option<Self::Item> {
+    self.edges.next().map(|edge| &mut edge.weight)
+  }
+
+  fn size_hint(&self) -> (usize, Option<usize>) {
+    self.edges.size_hint()
+  }
+}
+
 /// Iterator over all `Edge`s of a `Graph`.
 pub struct EdgeIterator<'a, E: 'a, Idx: Index = DefaultIdx> {
   /// Inner iterator over `Edge` & it's index (`EdgeIndex`).
   iter: std::iter::Enumerate<std::slice::Iter<'a, Edge<E, Idx>>>,
+}
+
+impl<'a, E, Idx> EdgeIterator<'a, E, Idx>
+where
+  E: 'a,
+  Idx: Index,
+{
+  pub fn new(
+    iter: std::iter::Enumerate<std::slice::Iter<'a, Edge<E, Idx>>>,
+  ) -> Self {
+    Self { iter }
+  }
 }
 
 impl<'a, E, Idx> Iterator for EdgeIterator<'a, E, Idx>
@@ -303,6 +379,15 @@ impl<'a, E, Idx> ExactSizeIterator for EdgeIterator<'a, E, Idx> where Idx: Index
 pub struct EdgeIndices<Idx = DefaultIdx> {
   r: std::ops::Range<usize>,
   _t: PhantomData<fn() -> Idx>,
+}
+
+impl<Idx> EdgeIndices<Idx> {
+  pub fn new(range: std::ops::Range<usize>) -> Self {
+    Self {
+      r: range,
+      _t: PhantomData,
+    }
+  }
 }
 
 impl<Idx: Index> Iterator for EdgeIndices<Idx> {

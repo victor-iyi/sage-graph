@@ -10,10 +10,18 @@ pub mod index;
 pub mod neighbor;
 pub mod node;
 
-use crate::iterator::format::{DebugMap, IterFormatExt, NoPretty};
+use crate::{
+  iterator::format::{DebugMap, IterFormatExt, NoPretty},
+  util::enumerate,
+};
+
 use direction::{Directed, Direction, Undirected, DIRECTIONS};
-use edge::{Edge, EdgeType};
+use edge::{
+  Edge, EdgeIndices, EdgeIterator, EdgeType, EdgeWeightsMut, Edges,
+  EdgesConnecting,
+};
 use index::{DefaultIdx, EdgeIndex, Index, NodeIndex};
+use neighbor::{edges_walker_mut, Neighbors};
 use node::Node;
 
 /// [`Graph`] - a graph data structure using an adjacency list representation.
@@ -216,6 +224,273 @@ where
       .map(|e| (e.source(), e.target()))
   }
 
+  /// Remove `a` from the graph if it exists, and return its weight.
+  /// If it doesn't exist in the graph, return `None`.
+  ///
+  /// Apart from `a`, this invalidatese the last node index in the graph
+  /// (that node will adopt the removed node index). Edge indices are
+  /// invalidated as they would be following the removal of each edge with
+  /// an endpoint in `a`.
+  ///
+  /// Computes in `O(e')` time, where `e'` is the number of affected edges,
+  /// including `n` calls to `.remove_edge()` where `n` is the number of edges
+  /// with an endpoing in `a`, and including the edges with an endpoint in the
+  /// displaced node.
+  pub fn remove_node(&mut self, a: NodeIndex<Idx>) -> Option<N> {
+    self.nodes.get(a.index())?;
+    for d in &DIRECTIONS {
+      let k = d.index();
+
+      // Remove all edges from and to this node.
+      loop {
+        let next = self.nodes[a.index()].next[k];
+        if next == EdgeIndex::end() {
+          break;
+        }
+        let ret = self.remove_edge(next);
+        debug_assert!(ret.is_some());
+        let _ = ret;
+      }
+    }
+
+    // Use swap_remove -- only the swapped-in node is going to change
+    // `NodeIndex<Idx>`, so we only have to walk its edges and update them.
+
+    let node = self.nodes.swap_remove(a.index());
+
+    // Find the edge lists of the node that had to relocate.
+    // It may be that no node had to relocate, then we are done already.
+    let swap_edges = match self.nodes.get(a.index()) {
+      Some(e) => e.next,
+      None => return Some(node.weight),
+    };
+
+    // The swapped element's old index.
+    let old_index = NodeIndex::new(self.nodes.len());
+    let new_index = a;
+
+    // Adjust the starts of the out edges, and ends of the in edges.
+    for &d in &DIRECTIONS {
+      let k = d.index();
+      let mut edges = edges_walker_mut(&mut self.edges, swap_edges[k], d);
+      while let Some(current_edge) = edges.next_edge() {
+        debug_assert!(current_edge.node[k] == old_index);
+        current_edge.node[k] = new_index;
+      }
+    }
+
+    Some(node.weight)
+  }
+
+  /// Remove an edge and return its edge weight or `None` if it doesn't exist.
+  ///
+  /// Apart from `e`, this invalidates the last edge index in the graph (that
+  /// edge will adopt the removed edge index).
+  ///
+  /// Computes in `O(e')` time, wehere `e'` is the size of four particular edge
+  /// lists, for the vertices of `e` and the vertices of another affected edge.
+  pub fn remove_edge(&mut self, e: EdgeIndex<Idx>) -> Option<E> {
+    // Every edge is part of two lists: Outgoing & Incoming edges.
+    // Remove it from both.
+    let (edge_node, edge_next) = match self.edges.get(e.index()) {
+      Some(edge) => (edge.node, edge.next),
+      None => return None,
+    };
+
+    // Remove the edge from its in and out lists by replacing it with a
+    // link to the next in the list.
+    self.change_edge_links(edge_node, e, edge_next);
+    self.remove_edge_adjust_indices(e)
+  }
+
+  fn remove_edge_adjust_indices(&mut self, e: EdgeIndex<Idx>) -> Option<E> {
+    // swap_remove the edge -- only the removed edge and the edge swapped into
+    // place are affected and need updating indices.
+    let edge = self.edges.swap_remove(e.index());
+    let swap = match self.edges.get(e.index()) {
+      Some(edge_) => edge_.node,
+      // No element needed to be swapped.
+      None => return Some(edge.weight),
+    };
+    let swapped_e = EdgeIndex::new(self.edges.len());
+
+    // Update the edge lists by replacing links to the old index by ref to the
+    // new edge index.
+    self.change_edge_links(swap, swapped_e, [e, e]);
+    Some(edge.weight)
+  }
+
+  /// For edge `e` with endpoint `edge_node`, replace links to it,
+  /// with links to `edge_next`.
+  fn change_edge_links(
+    &mut self,
+    edge_node: [NodeIndex<Idx>; 2],
+    e: EdgeIndex<Idx>,
+    edge_next: [EdgeIndex<Idx>; 2],
+  ) {
+    for &d in &DIRECTIONS {
+      let k = d.index();
+      let node = match self.nodes.get_mut(edge_node[k].index()) {
+        Some(r) => r,
+        None => {
+          debug_assert!(
+            false,
+            "Edge's endpoint direction={:?} index={:?} not found",
+            d, edge_node[k]
+          );
+          return;
+        }
+      };
+
+      let first = node.next[k];
+      if first == e {
+        println!(
+          "Updating first edge 0 for node {}, set to {}",
+          edge_node[0], edge_next[0]
+        );
+        node.next[k] = edge_next[k];
+      } else {
+        let mut edges = edges_walker_mut(&mut self.edges, first, d);
+        while let Some(current_edge) = edges.next_edge() {
+          if current_edge.next[k] == e {
+            current_edge.next[k] = edge_next[k];
+            break; // the edge can only be present once in the list.
+          }
+        }
+      }
+    }
+  }
+
+  /// Return an iteator of all nodes with an edge starting from `a`.
+  ///
+  /// - `Directed`: Outgoing edges from `a`.
+  /// - `Undirected`: All edges from or to `a`.
+  ///
+  /// Produces an empty iteartor if the node doesn't exist.
+  ///
+  /// Iterator element type is `NodeIndex<Idx>`.
+  ///
+  /// Use [`.neighbors(a).detach()`][1] to get neighbor walker that does not
+  /// borrow from the graph.
+  ///
+  /// [1]: crate::graph::neighbor::Neighbors.html#method.detach
+  pub fn neighbors(&self, a: NodeIndex<Idx>) -> Neighbors<E, Idx> {
+    self.neighbors_directed(a, Direction::Outgoing)
+  }
+
+  /// Retrun an iterator of all neighbors that habe an edge between them and `a`,
+  /// in the specified direction.
+  ///
+  /// If the graph's edge are undirected, this is equivalent to `*.neighbors(a)*.`
+  ///
+  /// - `Directed`, `Outgoing`: All edges from `a`.
+  /// - `Directed`, `Incoming`: All edges to `a`.
+  /// - `Undirected`: All edges from or to `a`.
+  ///
+  /// Produces an empty iterator if the node doesn't exist.
+  ///
+  /// Iterator element type is `NodeIndex<Idx>`.
+  ///
+  /// For a `Directed` graph, neighbors are listed in reverse order of their
+  /// addition to the graph, so the most recently added edge's neighbor walker
+  /// that does not borrow form the graph.
+  ///
+  /// Use [`.neighbors_directed(a, direction).detach()`][1] to get a neighbor walker
+  /// that does not borrow from the graph.
+  ///
+  /// [1]: struct.Neighbors.html#method.detach
+  pub fn neighbors_directed(
+    &self,
+    a: NodeIndex<Idx>,
+    direction: Direction,
+  ) -> Neighbors<E, Idx> {
+    let mut iter = self.neighbors_undirected(a);
+    if self.is_directed() {
+      let k = direction.index();
+      iter.next[1 - k] = EdgeIndex::end();
+      iter.skip_start = NodeIndex::end();
+    }
+
+    iter
+  }
+
+  /// Return an iterator of all neighbors that have an edge between them and
+  /// `a`, in either direction.
+  ///
+  /// If the graph's edges are undirected, this is equivalent to `*.neighbors(a)*.`
+  ///
+  /// - `Directed` and `Undirected`: All edges from or to `a`.
+  ///
+  /// Produces an empty iterator if the ndoe doesn't exist.
+  ///
+  /// Iterator element type is `NodeIndex<Idx>`.
+  ///
+  /// Use [`.neighbors_undirected(a).detach()`][1] to get neighbor walker that
+  /// does not borrow from the graph.
+  ///
+  /// [1]: struct.Neibors.html#method.detach
+  pub fn neighbors_undirected(&self, a: NodeIndex<Idx>) -> Neighbors<E, Idx> {
+    let next = match self.nodes.get(a.index()) {
+      Some(n) => n.next,
+      None => [EdgeIndex::end(), EdgeIndex::end()],
+    };
+
+    Neighbors::new(a, &self.edges, next)
+  }
+
+  /// Return an iteator of all edges of `a`.
+  ///
+  /// - `Directed`: Outgoing edges from `a`.
+  /// - `Undirected`: All edges connected to `a`.
+  ///
+  /// Produces an empty iterator if the node doesn't exist.
+  ///
+  /// Iterator element type is `EdgeRef<E, Idx>`.
+  pub fn edges(&self, a: NodeIndex<Idx>) -> Edges<E, T, Idx> {
+    self.edges_directed(a, Direction::Outgoing)
+  }
+
+  /// Return an iterator of all edges of `a`, in the specific direction.
+  ///
+  /// - `Directed`, `Outgoing`: All edges from `a`.
+  /// - `Directed`, `Incoming`: All edges from `a`.
+  /// - `Undirected`, `Outgoing`: All edges connected to `a`, beign the source
+  ///   of each edge.
+  /// - `undirected`, `Incoming`: All edges connected to `a`, with `a` being
+  ///   the target of each edge.
+  ///
+  ///   Produces an empty iteator if the node `a` doesn't exist.
+  ///
+  ///   Itator element type is `EdgeRef<E, Idx>`.
+  pub fn edges_directed(
+    &self,
+    a: NodeIndex<Idx>,
+    direction: Direction,
+  ) -> Edges<E, T, Idx> {
+    let next = match self.nodes.get(a.index()) {
+      Some(n) => n.next,
+      None => [EdgeIndex::end(), EdgeIndex::end()],
+    };
+
+    Edges::new(a, &self.edges, next, direction)
+  }
+
+  /// Return an iterator over all the edges connecting `a` and `b`.
+  ///
+  /// - `Directed`: Outgoing edges from `a`.
+  /// - `Undirected`: All edges connected to `a`.
+  ///
+  /// Iterator element type is `[EdgeRef<E, Idx>]`.
+  ///
+  /// [EdgeRef<E, Idx>]: crate::graph::edge::EdgeRef<E, Idx>
+  pub fn edges_connecting(
+    &self,
+    a: NodeIndex<Idx>,
+    b: NodeIndex<Idx>,
+  ) -> EdgesConnecting<E, T, Idx> {
+    EdgesConnecting::new(b, self.edges_directed(a, Direction::Outgoing))
+  }
+
   /// Lookup if there's an edge from `a` to `b`.
   ///
   /// Computes in `O(e')` time, where `e'` is the number of edges connected to `a`
@@ -295,6 +570,353 @@ where
       }
     }
     None
+  }
+
+  /// Return an iterator over the edge indices of the graph.
+  pub fn edge_indices(&self) -> EdgeIndices<Idx> {
+    EdgeIndices::new(0..self.edge_count())
+  }
+
+  /// Create an iterator over all edges; in indexed order.
+  ///
+  /// Iterator element type is `EdgeRef<E, Idx>`.
+  pub fn edge_iterator(&self) -> EdgeIterator<E, Idx> {
+    EdgeIterator::new(self.edges.iter().enumerate())
+  }
+
+  /// Return an iterator yielding mutable access to all edge wiehgts.
+  ///
+  /// The order in which weights are yielded matches the order of their
+  /// edge indices.
+  pub fn edge_weights_mut(&mut self) -> EdgeWeightsMut<E, Idx> {
+    EdgeWeightsMut::new(self.edges.iter_mut())
+  }
+
+  /// Reamaining methods are the more interal falvour, read-only acess to the
+  /// data structures's internals.
+
+  /// Acess the interal node array.
+  pub fn raw_nodes(&self) -> &[Node<N, Idx>] {
+    &self.nodes
+  }
+
+  /// Access to the internal edge array.
+  pub fn raw_edges(&self) -> &[Edge<E, Idx>] {
+    &self.edges
+  }
+
+  /// Convert the graph into a vector of Nodes and vector of Edges.
+  pub fn into_nodes_edges(self) -> (Vec<Node<N, Idx>>, Vec<Edge<E, Idx>>) {
+    (self.nodes, self.edges)
+  }
+
+  /// Acessor for data structure internals: the first edge in the given direction.
+  pub fn first_edge(
+    &self,
+    a: NodeIndex<Idx>,
+    direction: Direction,
+  ) -> Option<EdgeIndex<Idx>> {
+    match self.nodes.get(a.index()) {
+      Some(node) => {
+        let edge_idx = node.next[direction.index()];
+        if edge_idx == EdgeIndex::end() {
+          None
+        } else {
+          Some(edge_idx)
+        }
+      }
+      None => None,
+    }
+  }
+
+  /// Accessor for data structure internals: the next edge for the given direction.
+  pub fn next_edge(
+    &self,
+    e: EdgeIndex<Idx>,
+    direction: Direction,
+  ) -> Option<EdgeIndex<Idx>> {
+    match self.edges.get(e.index()) {
+      Some(node) => {
+        let edge_idx = node.next[direction.index()];
+        if edge_idx == EdgeIndex::end() {
+          None
+        } else {
+          Some(edge_idx)
+        }
+      }
+      None => None,
+    }
+  }
+
+  //   pub fn index_twice_mut<T, U>(
+  //     &mut self,
+  //     i: T,
+  //     j: U,
+  //   ) -> (
+  //     &mut <Self as Index<T>>::Output,
+  //     &mut <Self as Index<U>>::Output,
+  //   )
+  //   where
+  //     Self: IndexMut<T> + IndexMut<U>,
+  //     T: GraphIndex,
+  //     U: GraphIndex,
+  //   {
+  //     assert!(T::is_node_index() != U::is_node_index() || i.index() != j.index());
+  //
+  //     // SAFETY: Allow two mutable indices here -- they are non-overlapping.
+  //     unsafe {
+  //       let self_mut = self as *mut _;
+  //       (
+  //         <Self as IndexMut<T>>::index_mut(&mut *self_mut, i),
+  //         <Self as IndexMut<U>>::index_mut(&mut *self_mut, j),
+  //       )
+  //     }
+  //   }
+
+  /// Reverse the direction of all edges.
+  pub fn reverse(&mut self) {
+    // Swap edge endpoints.
+    // edge incoming / outgoing lists,
+    // node incoming / outgoing lists
+    for edge in &mut self.edges {
+      edge.node.swap(0, 1);
+      edge.next.swap(0, 1);
+    }
+
+    for node in &mut self.nodes {
+      node.next.swap(0, 1);
+    }
+  }
+
+  /// Remove all nodes and edges
+  pub fn clear(&mut self) {
+    self.nodes.clear();
+    self.edges.clear();
+  }
+
+  /// Remove all edges
+  pub fn clear_edges(&mut self) {
+    self.edges.clear();
+    for node in &mut self.nodes {
+      node.next = [EdgeIndex::end(), EdgeIndex::end()];
+    }
+  }
+
+  /// Return the current node and edge capacity of the graph.
+  pub fn capacity(&self) -> (usize, usize) {
+    (self.nodes.capacity(), self.edges.capacity())
+  }
+
+  /// Reserve capacity for at leaset `additional` more nodes to be inserted in
+  /// the graph. Graph may reserve more spaces to avoid frequest reallocations.
+  ///
+  /// **Panics** If the new capacity overflows `usize`.
+  pub fn reserve_nodes(&mut self, additional: usize) {
+    self.nodes.reserve(additional);
+  }
+
+  /// Reserves capacity for at least `additional` more edges to be inserted in
+  /// the graph. Graph may reserve more spaces to avoid frequent reallocations.
+  ///
+  /// **Panics** If the new capacity overflows `usize.`
+  pub fn reserve_edges(&mut self, additional: usize) {
+    self.edges.reserve(additional);
+  }
+
+  /// Reserve the minimum capacity for exactly `additional` more nodes to be
+  /// inserted in the graph. Does nothing if the capacity is already sufficient.
+  ///
+  /// Prefer [`reserve_nodes`] if future insertions are expected.
+  ///
+  /// **Panics** If the new capacity overflows `usize`.
+  ///
+  /// [`reverve_nodes`]: struct.Graph.html#method.reserve_nodes
+  pub fn reserve_exact_nodes(&mut self, additional: usize) {
+    self.nodes.reserve_exact(additional);
+  }
+
+  /// Reserve the minimum capacity for exactly `additional` more edges to be
+  /// inserted in the graph. Does nothing if the capacity is already sufficient.
+  ///
+  /// Prefer [`reserve_edges`] if future insertions are expected.
+  ///
+  /// **Panics** If the new capacity overflows `usize`.
+  ///
+  /// [`reverve_edges`]: struct.Graph.html#method.reserve_edges
+  pub fn reserve_exact_edges(&mut self, additional: usize) {
+    self.edges.reserve_exact(additional);
+  }
+
+  /// Shrinks the capacity of the underlying nodes collection as much as possible.
+  pub fn shrink_to_fit_nodes(&mut self) {
+    self.nodes.shrink_to_fit();
+  }
+
+  /// Shrinks the capacity of the underlying edges collection as much as possible.
+  pub fn shrink_to_fit_edges(&mut self) {
+    self.edges.shrink_to_fit();
+  }
+
+  /// Shrinks the capacity of the graph as much as possible.
+  pub fn shrink_to_fit(&mut self) {
+    self.nodes.shrink_to_fit();
+    self.edges.shrink_to_fit();
+  }
+
+  // /// Keep all nodes that return `true` from the `visit` closure, remove the others.
+  // ///
+  // /// `visit` is provided a proxy reference to the graph, so that the graph can be
+  // /// walked and associated data modified.
+  // ///
+  // /// The order nodes are visited is not specified.
+  //   pub fn retain_nodes<F>(&mut self, mut visit: F)
+  //   where
+  //     F: FnMut(Frozen<Self>, NodeIndex<Idx>) -> bool,
+  //   {
+  //     for index in self.node_indices().rev() {
+  //       if !visit(Frozen(self), index) {
+  //         let ret = self.remove_node(index);
+  //         debug_assert!(ret.is_some());
+  //         let _ = ret;
+  //       }
+  //     }
+  //   }
+
+  /// Keep all edges that return `true` from the `visit` closure, remove the others.
+  ///
+  /// `visit` is provided a proxy reference to the graph, so that the graph can be
+  /// walked and associated data modified.
+  ///
+  /// The order edges are visited is not specified.
+  pub fn retain_edges<F>(&mut self, mut visit: F)
+  where
+    F: FnMut(Frozen<Self>, EdgeIndex<Idx>) -> bool,
+  {
+    for index in self.edge_indices().rev() {
+      if !visit(Frozen(self), index) {
+        let ret = self.remove_edge(index);
+        debug_assert!(ret.is_some());
+        let _ = ret;
+      }
+    }
+  }
+
+  /// Create a new `Graph` by mapping node and edge weights to new values.
+  ///
+  /// The resulting graph has the same structure and the same graph indices as
+  /// `self`.
+  pub fn map<'a, F, G, N2, E2>(
+    &'a self,
+    mut node_map: F,
+    mut edge_map: G,
+  ) -> Graph<N2, E2, T, Idx>
+  where
+    F: FnMut(NodeIndex<Idx>, &'a N) -> N2,
+    G: FnMut(EdgeIndex<Idx>, &'a E) -> E2,
+  {
+    let mut g = Graph::with_capacity(self.node_count(), self.edge_count());
+
+    g.nodes.extend(enumerate(&self.nodes).map(|(i, node)| Node {
+      weight: node_map(NodeIndex::new(i), &node.weight),
+      next: node.next,
+    }));
+
+    g.edges.extend(enumerate(&self.edges).map(|(i, edge)| Edge {
+      weight: edge_map(EdgeIndex::new(i), &edge.weight),
+      next: edge.next,
+      node: edge.node,
+    }));
+
+    g
+  }
+
+  /// Create a new `Graph` by mapping nodes and edges. A node or edge may be
+  /// mapped to `None` to exclude it from the resulting graph.
+  ///
+  /// Nodes are mapped first with the `node_map` closure, then `edge_map` is
+  /// called for the edges that have not had any endpoint removed.
+  ///
+  /// The resulting graph has the structure of a subgraph of the original graph.
+  /// If no nodes are removed, the resulting graph has compactible node indices;
+  /// if neither node nor edges are rmoved, the result has the same graph indices
+  /// as `self`.
+  pub fn filter_map<'a, F, G, N2, E2>(
+    &'a self,
+    mut node_map: F,
+    mut edge_map: G,
+  ) -> Graph<N2, E2, T, Idx>
+  where
+    F: FnMut(NodeIndex<Idx>, &'a N) -> Option<N2>,
+    G: FnMut(EdgeIndex<Idx>, &'a E) -> Option<E2>,
+  {
+    let mut g = Graph::with_capacity(0, 0);
+
+    // Mapping from old node index to new node index, end represents removed.
+    let mut node_index_map = vec![NodeIndex::end(); self.node_count()];
+
+    for (i, node) in enumerate(&self.nodes) {
+      if let Some(node_weight) = node_map(NodeIndex::new(i), &node.weight) {
+        node_index_map[i] = g.add_node(node_weight);
+      }
+    }
+
+    for (i, edge) in enumerate(&self.edges) {
+      // Skip edge if any endpoint was removed.
+      let source = node_index_map[edge.source().index()];
+      let target = node_index_map[edge.target().index()];
+      if source != NodeIndex::end() && target != NodeIndex::end() {
+        if let Some(edge_weight) = edge_map(EdgeIndex::new(i), &edge.weight) {
+          g.add_edge(source, target, edge_weight);
+        }
+      }
+    }
+
+    g
+  }
+
+  /// Convert the graph into either undirected or directed. No edge adjustments
+  /// are done, so you may want to go over the result to remove or add edges.
+  ///
+  /// Computes in `O(1)` time.
+  pub fn into_edge_type<NewT>(self) -> Graph<N, E, NewT, Idx>
+  where
+    NewT: EdgeType,
+  {
+    Graph {
+      nodes: self.nodes,
+      edges: self.edges,
+      _type: PhantomData,
+    }
+  }
+
+  //
+  // Internal methods
+  //
+
+  /// Fix up node and edge links after deserialization.
+  fn link_edges(&mut self) -> Result<(), NodeIndex<Idx>> {
+    for (edge_index, edge) in enumerate(&mut self.edges) {
+      let a = edge.source();
+      let b = edge.target();
+      let edge_idx = EdgeIndex::new(edge_index);
+
+      match index_twice(&mut self.nodes, a.index(), b.index()) {
+        Pair::None => return Err(if a > b { a } else { b }),
+        Pair::One(an) => {
+          edge.next = an.next;
+          an.next[0] = edge_idx;
+          an.next[1] = edge_idx;
+        }
+        Pair::Both(an, bn) => {
+          // a and b are different indices
+          edge.next = [an.next[0], bn.next[1]];
+          an.next[0] = edge_idx;
+          bn.next[1] = edge_idx;
+        }
+      }
+    }
+
+    Ok(())
   }
 }
 
