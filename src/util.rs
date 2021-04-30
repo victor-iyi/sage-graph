@@ -1,7 +1,7 @@
 use std::iter;
 
 /// Enumerate helper.
-pub fn enumerate<I>(Iterable: I) -> iter::Enumerate<I::IntoIter>
+pub fn enumerate<I>(iterable: I) -> iter::Enumerate<I::IntoIter>
 where
   I: IntoIterator,
 {

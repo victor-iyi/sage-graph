@@ -27,7 +27,7 @@ where
 }
 
 impl<E, Idx: Index> Edge<E, Idx> {
-  /// Create a new edge.
+  /// Create a new `Edge`.
   pub fn new(
     weight: E,
     next: [EdgeIndex<Idx>; 2],
@@ -37,8 +37,8 @@ impl<E, Idx: Index> Edge<E, Idx> {
   }
 
   /// Returns the next edge index in a given direction.
-  pub fn next_edge(&self, dir: Direction) -> EdgeIndex<Idx> {
-    self.next[dir.index()]
+  pub fn next_edge(&self, direction: Direction) -> EdgeIndex<Idx> {
+    self.next[direction.index()]
   }
 
   /// Returns outgoing edge index.
@@ -125,11 +125,7 @@ impl<'a, E, T: EdgeType, Idx: Index> Edges<'a, E, T, Idx> {
   }
 }
 
-impl<'a, E, T, Idx> Iterator for Edges<'a, E, T, Idx>
-where
-  T: EdgeType,
-  Idx: Index,
-{
+impl<'a, E, T: EdgeType, Idx: Index> Iterator for Edges<'a, E, T, Idx> {
   type Item = EdgeRef<'a, E, Idx>;
 
   fn next(&mut self) -> Option<Self::Item> {
@@ -192,11 +188,7 @@ where
   }
 }
 
-impl<'a, E, T, Idx> Clone for Edges<'a, E, T, Idx>
-where
-  Idx: Index,
-  T: EdgeType,
-{
+impl<'a, E, T: EdgeType, Idx: Index> Clone for Edges<'a, E, T, Idx> {
   fn clone(&self) -> Self {
     Edges {
       skip_start: self.skip_start,
@@ -266,10 +258,7 @@ pub struct EdgeRef<'a, E: 'a, Idx = DefaultIdx> {
   weight: &'a E,
 }
 
-impl<'a, Idx, E> EdgeRef<'a, E, Idx>
-where
-  Idx: Index,
-{
+impl<'a, E, Idx: Index> EdgeRef<'a, E, Idx> {
   pub fn weight(&self) -> &'a E {
     self.weight
   }
@@ -297,20 +286,14 @@ pub struct EdgeWeightsMut<'a, E: 'a, Idx: Index = DefaultIdx> {
   edges: std::slice::IterMut<'a, Edge<E, Idx>>,
 }
 
-impl<'a, E, Idx> EdgeWeightsMut<'a, E, Idx>
-where
-  Idx: Index,
-{
+impl<'a, E, Idx: Index> EdgeWeightsMut<'a, E, Idx> {
   /// Create a new iterator yielding mutable edge weights.
   pub fn new(edges: std::slice::IterMut<'a, Edge<E, Idx>>) -> Self {
     Self { edges }
   }
 }
 
-impl<'a, E, Idx> Iterator for EdgeWeightsMut<'a, E, Idx>
-where
-  Idx: Index,
-{
+impl<'a, E, Idx: Index> Iterator for EdgeWeightsMut<'a, E, Idx> {
   type Item = &'a mut E;
 
   fn next(&mut self) -> Option<Self::Item> {
@@ -328,11 +311,8 @@ pub struct EdgeIterator<'a, E: 'a, Idx: Index = DefaultIdx> {
   iter: std::iter::Enumerate<std::slice::Iter<'a, Edge<E, Idx>>>,
 }
 
-impl<'a, E, Idx> EdgeIterator<'a, E, Idx>
-where
-  E: 'a,
-  Idx: Index,
-{
+impl<'a, E: 'a, Idx: Index> EdgeIterator<'a, E, Idx> {
+  /// Create a new iterator over all `Edge`s of a `Graph`.
   pub fn new(
     iter: std::iter::Enumerate<std::slice::Iter<'a, Edge<E, Idx>>>,
   ) -> Self {
@@ -340,10 +320,7 @@ where
   }
 }
 
-impl<'a, E, Idx> Iterator for EdgeIterator<'a, E, Idx>
-where
-  Idx: Index,
-{
+impl<'a, E, Idx: Index> Iterator for EdgeIterator<'a, E, Idx> {
   type Item = EdgeRef<'a, E, Idx>;
 
   fn next(&mut self) -> Option<Self::Item> {
@@ -359,10 +336,7 @@ where
   }
 }
 
-impl<'a, E, Idx> DoubleEndedIterator for EdgeIterator<'a, E, Idx>
-where
-  Idx: Index,
-{
+impl<'a, E, Idx: Index> DoubleEndedIterator for EdgeIterator<'a, E, Idx> {
   fn next_back(&mut self) -> Option<Self::Item> {
     self.iter.next_back().map(|(i, edge)| EdgeRef {
       index: edge_index(i),

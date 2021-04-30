@@ -6,6 +6,7 @@ use std::mem::size_of;
 
 pub mod direction;
 pub mod edge;
+pub mod externals;
 pub mod index;
 pub mod neighbor;
 pub mod node;
@@ -15,14 +16,17 @@ use crate::{
   util::enumerate,
 };
 
-use direction::{Directed, Direction, Undirected, DIRECTIONS};
-use edge::{
-  Edge, EdgeIndices, EdgeIterator, EdgeType, EdgeWeightsMut, Edges,
-  EdgesConnecting,
+use self::{
+  direction::{Directed, Direction, Undirected, DIRECTIONS},
+  edge::{
+    Edge, EdgeIndices, EdgeIterator, EdgeType, EdgeWeightsMut, Edges,
+    EdgesConnecting,
+  },
+  externals::Externals,
+  index::{DefaultIdx, EdgeIndex, GraphIndex, Index, NodeIndex},
+  neighbor::{edges_walker_mut, Neighbors},
+  node::{Node, NodeIndices, NodeWeightsMut},
 };
-use index::{DefaultIdx, EdgeIndex, Index, NodeIndex};
-use neighbor::{edges_walker_mut, Neighbors};
-use node::Node;
 
 /// [`Graph`] - a graph data structure using an adjacency list representation.
 ///
@@ -572,6 +576,36 @@ where
     None
   }
 
+  /// Return an iterator over either the `Node`s without `Edge`s to them
+  /// (`Incoming`) or from them (`Outgoing`).
+  ///
+  /// An *internal* node has both `Incoming` and `Outgoing` `Edge`s. The `Node`s
+  /// in `.externals(Incoming)` are the source nodes and `.externals(Outgoing)`
+  /// are the sinks of the graph.
+  ///
+  /// For a graph with undirected edges, both the sinks and the sources are just
+  /// the nodes without edges.
+  ///
+  /// The whole iteration computes in `O(|V|)` time.
+  pub fn externals(&self, direction: Direction) -> Externals<N, T, Idx> {
+    Externals::new(self.nodes.iter().enumerate(), direction)
+  }
+
+  /// Return an iterator over the `Node` indices of the graph.
+  ///
+  /// For example, in a rare case wehere a graph algorithm were not applicable,
+  /// the following code will iterate through all nodes to find a specific index.
+  ///
+  /// ```rust,norun
+  /// # use sage_graph::Graph;
+  /// # let mut g = Graph::<&str, i32>::new();
+  /// # g.add_node("book");
+  /// let index = g.node_indices().find(|i| g[*i] == "book").unwrap();
+  /// ```
+  pub fn node_indices(&self) -> NodeIndices<Idx> {
+    NodeIndices::new(0..self.node_count())
+  }
+
   /// Return an iterator over the edge indices of the graph.
   pub fn edge_indices(&self) -> EdgeIndices<Idx> {
     EdgeIndices::new(0..self.edge_count())
@@ -582,6 +616,14 @@ where
   /// Iterator element type is `EdgeRef<E, Idx>`.
   pub fn edge_iterator(&self) -> EdgeIterator<E, Idx> {
     EdgeIterator::new(self.edges.iter().enumerate())
+  }
+
+  /// Return an iterator yielding mutable access to all node weights.
+  ///
+  /// The order in which weights are yielded matches the order of their
+  /// node indices.
+  pub fn node_weights_mut(&mut self) -> NodeWeightsMut<N, Idx> {
+    NodeWeightsMut::new(self.nodes.iter_mut())
   }
 
   /// Return an iterator yielding mutable access to all edge wiehgts.
@@ -648,30 +690,34 @@ where
     }
   }
 
-  //   pub fn index_twice_mut<T, U>(
-  //     &mut self,
-  //     i: T,
-  //     j: U,
-  //   ) -> (
-  //     &mut <Self as Index<T>>::Output,
-  //     &mut <Self as Index<U>>::Output,
-  //   )
-  //   where
-  //     Self: IndexMut<T> + IndexMut<U>,
-  //     T: GraphIndex,
-  //     U: GraphIndex,
-  //   {
-  //     assert!(T::is_node_index() != U::is_node_index() || i.index() != j.index());
-  //
-  //     // SAFETY: Allow two mutable indices here -- they are non-overlapping.
-  //     unsafe {
-  //       let self_mut = self as *mut _;
-  //       (
-  //         <Self as IndexMut<T>>::index_mut(&mut *self_mut, i),
-  //         <Self as IndexMut<U>>::index_mut(&mut *self_mut, j),
-  //       )
-  //     }
-  //   }
+  /// Index the `Graph` by two indices, any combination of node or edge indices
+  /// is fine.
+  ///
+  /// **Panics** If the indices are equal or if they are out of bounds.
+  pub fn index_twice_mut<I, J>(
+    &mut self,
+    i: I,
+    j: J,
+  ) -> (
+    &mut <Self as std::ops::Index<I>>::Output,
+    &mut <Self as std::ops::Index<J>>::Output,
+  )
+  where
+    Self: std::ops::IndexMut<I> + std::ops::IndexMut<J>,
+    I: GraphIndex,
+    J: GraphIndex,
+  {
+    assert!(I::is_node_index() != J::is_node_index() || i.index() != j.index());
+
+    // SAFETY: Allow two mutable indices here -- they are non-overlapping.
+    unsafe {
+      let self_mut = self as *mut _;
+      (
+        <Self as std::ops::IndexMut<I>>::index_mut(&mut *self_mut, i),
+        <Self as std::ops::IndexMut<J>>::index_mut(&mut *self_mut, j),
+      )
+    }
+  }
 
   /// Reverse the direction of all edges.
   pub fn reverse(&mut self) {
@@ -763,24 +809,24 @@ where
     self.edges.shrink_to_fit();
   }
 
-  // /// Keep all nodes that return `true` from the `visit` closure, remove the others.
-  // ///
-  // /// `visit` is provided a proxy reference to the graph, so that the graph can be
-  // /// walked and associated data modified.
-  // ///
-  // /// The order nodes are visited is not specified.
-  //   pub fn retain_nodes<F>(&mut self, mut visit: F)
-  //   where
-  //     F: FnMut(Frozen<Self>, NodeIndex<Idx>) -> bool,
-  //   {
-  //     for index in self.node_indices().rev() {
-  //       if !visit(Frozen(self), index) {
-  //         let ret = self.remove_node(index);
-  //         debug_assert!(ret.is_some());
-  //         let _ = ret;
-  //       }
-  //     }
-  //   }
+  /// Keep all nodes that return `true` from the `visit` closure, remove the others.
+  ///
+  /// `visit` is provided a proxy reference to the graph, so that the graph can be
+  /// walked and associated data modified.
+  ///
+  /// The order nodes are visited is not specified.
+  pub fn retain_nodes<F>(&mut self, mut visit: F)
+  where
+    F: FnMut(Frozen<Self>, NodeIndex<Idx>) -> bool,
+  {
+    for index in self.node_indices().rev() {
+      if !visit(Frozen(self), index) {
+        let ret = self.remove_node(index);
+        debug_assert!(ret.is_some());
+        let _ = ret;
+      }
+    }
+  }
 
   /// Keep all edges that return `true` from the `visit` closure, remove the others.
   ///
@@ -894,6 +940,7 @@ where
   //
 
   /// Fix up node and edge links after deserialization.
+  // #[cfg(feature = "serde-1")]
   fn link_edges(&mut self) -> Result<(), NodeIndex<Idx>> {
     for (edge_index, edge) in enumerate(&mut self.edges) {
       let a = edge.source();

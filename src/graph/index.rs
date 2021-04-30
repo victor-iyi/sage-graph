@@ -2,6 +2,8 @@
 
 use std::{fmt, hash::Hash};
 
+use super::{edge::EdgeType, Graph};
+
 /// Graph's default index.
 ///
 /// `u32` is the defaul index because it strikes a balance between size and
@@ -187,6 +189,94 @@ impl<Idx: fmt::Debug> fmt::Debug for EdgeIndex<Idx> {
 impl<Idx: fmt::Debug> fmt::Display for EdgeIndex<Idx> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     write!(f, "sg:E<{:?}>", self.0)
+  }
+}
+
+/// Index the `Graph` by `NodeIndex` to access node weights.
+///
+/// **Panics** if the node doesn't exit.
+impl<N, E, T, Idx> std::ops::Index<NodeIndex<Idx>> for Graph<N, E, T, Idx>
+where
+  T: EdgeType,
+  Idx: Index,
+{
+  type Output = N;
+
+  fn index(&self, index: NodeIndex<Idx>) -> &Self::Output {
+    &self.nodes[index.index()].weight
+  }
+}
+
+/// Index the `Graph` by `NodeIndex` to access node weights mutably.
+///
+/// **Panics** if the node doesn't exist.
+impl<N, E, T, Idx> std::ops::IndexMut<NodeIndex<Idx>> for Graph<N, E, T, Idx>
+where
+  T: EdgeType,
+  Idx: Index,
+{
+  fn index_mut(&mut self, index: NodeIndex<Idx>) -> &mut Self::Output {
+    &mut self.nodes[index.index()].weight
+  }
+}
+
+/// Index the `Graph` by `EdgeIndex` to access node weights.
+///
+/// **Panics** if the node doesn't exist.
+impl<N, E, T, Idx> std::ops::Index<EdgeIndex<Idx>> for Graph<N, E, T, Idx>
+where
+  T: EdgeType,
+  Idx: Index,
+{
+  type Output = E;
+
+  fn index(&self, index: EdgeIndex<Idx>) -> &Self::Output {
+    &self.edges[index.index()].weight
+  }
+}
+
+/// Index the `Graph` by `EdgeIndex` to access node weights mutably.
+///
+/// **Panics** if the node doesn't exist.
+impl<N, E, T, Idx> std::ops::IndexMut<EdgeIndex<Idx>> for Graph<N, E, T, Idx>
+where
+  T: EdgeType,
+  Idx: Index,
+{
+  fn index_mut(&mut self, index: EdgeIndex<Idx>) -> &mut Self::Output {
+    &mut self.edges[index.index()].weight
+  }
+}
+
+/// A `GraphIndex` is a node or edge index.
+pub trait GraphIndex: Copy {
+  #[doc(hidden)]
+  fn index(&self) -> usize;
+  #[doc(hidden)]
+  fn is_node_index() -> bool;
+}
+
+impl<Idx: Index> GraphIndex for NodeIndex<Idx> {
+  #[inline]
+  fn index(&self) -> usize {
+    NodeIndex::index(*self)
+  }
+
+  #[inline]
+  fn is_node_index() -> bool {
+    true
+  }
+}
+
+impl<Idx: Index> GraphIndex for EdgeIndex<Idx> {
+  #[inline]
+  fn index(&self) -> usize {
+    EdgeIndex::index(*self)
+  }
+
+  #[inline]
+  fn is_node_index() -> bool {
+    false
   }
 }
 

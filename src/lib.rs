@@ -6,7 +6,13 @@ mod util;
 
 pub use crate::error::{Error, ErrorKind, Result};
 pub use crate::graph::{
-  edge::{Edge, EdgeType},
+  direction::{Directed, Direction, Undirected, DIRECTIONS},
+  edge::{
+    Edge, EdgeIndices, EdgeIterator, EdgeRef, EdgeType, EdgeWeightsMut, Edges,
+    EdgesConnecting,
+  },
+  index::{EdgeIndex, Index, NodeIndex},
+  neighbor::{Neighbors, Walker},
   node::Node,
   DiGraph, Graph, UnDiGraph,
 };
