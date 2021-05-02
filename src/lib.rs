@@ -1,3 +1,5 @@
+#![allow(macro_expanded_macro_exports_accessed_by_absolute_paths)]
+
 mod error;
 mod graph;
 mod iterator;
@@ -19,6 +21,7 @@ pub use crate::graph::{
 
 #[allow(unused_imports)]
 pub(crate) use iterator::format;
+pub use iterator::{EdgeReference, GraphBase, GraphRef, NodeReference};
 
 #[allow(unused_imports)]
 pub(crate) use util::{enumerate, rev, zip};
