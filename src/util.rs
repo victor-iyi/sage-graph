@@ -1,7 +1,7 @@
 use std::iter;
 
 /// Enumerate helper.
-pub fn enumerate<I>(iterable: I) -> iter::Enumerate<I::IntoIter>
+pub(crate) fn enumerate<I>(iterable: I) -> iter::Enumerate<I::IntoIter>
 where
   I: IntoIterator,
 {
@@ -9,7 +9,7 @@ where
 }
 
 /// Reverse helper
-pub fn rev<I>(iterable: I) -> iter::Rev<I::IntoIter>
+pub(crate) fn rev<I>(iterable: I) -> iter::Rev<I::IntoIter>
 where
   I: IntoIterator,
   I::IntoIter: DoubleEndedIterator,
@@ -18,7 +18,7 @@ where
 }
 
 /// Zip helper.
-pub fn zip<I, J>(i: I, j: J) -> iter::Zip<I::IntoIter, J::IntoIter>
+pub(crate) fn zip<I, J>(i: I, j: J) -> iter::Zip<I::IntoIter, J::IntoIter>
 where
   I: IntoIterator,
   J: IntoIterator,

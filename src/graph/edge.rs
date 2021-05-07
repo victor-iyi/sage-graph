@@ -251,11 +251,11 @@ where
 #[derive(Debug)]
 pub struct EdgeRef<'a, E: 'a, Idx = DefaultIdx> {
   /// Referencing `Edge`'s index.
-  index: EdgeIndex<Idx>,
+  pub(crate) index: EdgeIndex<Idx>,
   /// Referencing `Edge`'s start and end `Node`.
-  node: [NodeIndex<Idx>; 2],
+  pub(crate) node: [NodeIndex<Idx>; 2],
   /// Reference to `Edge`'s associated data.
-  weight: &'a E,
+  pub(crate) weight: &'a E,
 }
 
 impl<'a, E, Idx: Index> EdgeRef<'a, E, Idx> {

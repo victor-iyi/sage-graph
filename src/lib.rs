@@ -19,8 +19,6 @@ pub use crate::graph::{
   DiGraph, Graph, UnDiGraph,
 };
 
-#[allow(unused_imports)]
-pub(crate) use iterator::format;
 pub use iterator::{EdgeReference, GraphBase, GraphRef, NodeReference};
 
 #[allow(unused_imports)]

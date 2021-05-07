@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::fmt;
 
 /// Format the iterator like a map.
-pub struct DebugMap<F>(pub F);
+pub(crate) struct DebugMap<F>(pub F);
 
 impl<'a, F, I, K, V> fmt::Debug for DebugMap<F>
 where
@@ -20,7 +20,7 @@ where
 }
 
 /// Avoid "pretty" debug.
-pub struct NoPretty<T>(pub T);
+pub(crate) struct NoPretty<T>(pub T);
 
 impl<T> fmt::Debug for NoPretty<T>
 where
@@ -35,13 +35,13 @@ where
 ///
 /// The format value can only be formatted once, after the iterator is exhausted.
 #[derive(Clone)]
-pub struct Format<'a, I> {
+pub(crate) struct Format<'a, I> {
   sep: &'a str,
   /// Format uses interior mutability because `Display::fmt` takes `&self`.
   inner: RefCell<Option<I>>,
 }
 
-pub trait IterFormatExt: Iterator {
+pub(crate) trait IterFormatExt: Iterator {
   fn format(self, sep: &str) -> Format<Self>
   where
     Self: Sized,

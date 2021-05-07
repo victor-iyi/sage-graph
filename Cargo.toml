@@ -18,3 +18,35 @@ name = "sage"
 path = "src/lib.rs"
 
 [dependencies]
+fixedbitset = { version = "0.4", default-features = false }
+quickcheck = { version = "1.0", default-features = false, optional = true }
+indexmap = { version = "1.6" }
+serde = { version = "1.0", optional = true }
+serde_derive = { version = "1.0", optional = true }
+
+[dev-dependencies]
+rand = "0.8.3"
+odds = "0.4"
+defmac = "0.2"
+itertools = { version = "0.10", default-features = false }
+
+[features]
+# default = ["graphmap", "stable_graph", "matrix_graph"]
+default = []
+graphmap = []
+serde-1 = ["serde", "serde_derive"]
+stable_graph = []
+matrix_graph = []
+
+# For unstable features
+generate = []
+unstable = ["generate"]
+
+# Features flags for testing use only.
+all = ["unstable", "quickcheck", "matrix_graph", "stable_graph", "graphmap"]
+
+[package.metadata.docs.rs]
+features = ["serde-1", "quickcheck"]
+
+# [project.metadata.release]
+# no-dev-version = true

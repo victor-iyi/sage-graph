@@ -212,7 +212,7 @@ macro_rules! deref {
 }
 
 #[macro_export]
-macro_rules! deref_twise {
+macro_rules! deref_twice {
   ($e:expr) => {
     **$e;
   };
@@ -223,10 +223,11 @@ macro_rules! deref_twise {
 #[macro_export]
 macro_rules! delegate_impl {
     ([] $($rest:tt)*) => {
-        crate::delegate_impl! { [['a, G], G, &'a G, deref] $($rest)* }
+        delegate_impl! { [['a, G], G, &'a G, deref] $($rest)* }
     };
     ([[$($param:tt)*], $self_type:ident, $self_wrap:ty, $self_map:ident]
      pub trait $name:ident $(: $sup:ident)* $(+ $more_sup:ident)* {
+
          // "Escaped" associated types. Stripped before making the `trait`
          // itself, but forwarded when delegating impls.
          $(
@@ -248,7 +249,7 @@ macro_rules! delegate_impl {
             $(
                 $(#[$_method_attr:meta])*
                 fn $method_name:ident(self $(: $self_selftype:ty)* $(,$marg:ident : $marg_ty:ty)*) $(-> $mret:ty)?;
-            )*
+            )+
         )*
         // Arbitrary tail that is ignored when forwarding.
         $(
