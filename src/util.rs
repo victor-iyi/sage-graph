@@ -8,7 +8,7 @@ where
   iterable.into_iter().enumerate()
 }
 
-/// Reverse helper
+/// Reverse helper.
 pub(crate) fn rev<I>(iterable: I) -> iter::Rev<I::IntoIter>
 where
   I: IntoIterator,

@@ -596,7 +596,7 @@ where
   /// For example, in a rare case wehere a graph algorithm were not applicable,
   /// the following code will iterate through all nodes to find a specific index.
   ///
-  /// ```rust,norun
+  /// ```no_run
   /// # use sage_graph::Graph;
   /// # let mut g = Graph::<&str, i32>::new();
   /// # g.add_node("book");
