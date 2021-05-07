@@ -18,8 +18,9 @@ use std::{
 
 use fixedbitset::FixedBitSet;
 
-pub mod format;
-pub mod util;
+pub(crate) mod extension;
+pub(crate) mod format;
+pub(crate) mod util;
 
 trait_template! {
     /// Base graph trait: defines the associated node identifier and

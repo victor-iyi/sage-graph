@@ -11,8 +11,8 @@ pub mod index;
 pub mod neighbor;
 pub mod node;
 
-use crate::{
-  iterator::format::{DebugMap, IterFormatExt, NoPretty},
+use crate::iterator::{
+  format::{DebugMap, IterFormatExt, NoPretty},
   util::enumerate,
 };
 

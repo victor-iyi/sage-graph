@@ -1,30 +1,27 @@
-pub trait IterUtilsExt: Iterator {
-  fn ex_find_map<F, R>(&mut self, mut f: F) -> Option<R>
-  where
-    F: FnMut(Self::Item) -> Option<R>,
-  {
-    for elt in self {
-      if let result @ Some(_) = f(elt) {
-        return result;
-      }
-    }
-    None
-  }
+use std::iter;
 
-  /// Return the last element from the back that maps to `Some(_)`, or None
-  /// if the iterator was exhausted.
-  fn ex_rfind_map<F, R>(&mut self, mut f: F) -> Option<R>
-  where
-    F: FnMut(Self::Item) -> Option<R>,
-    Self: DoubleEndedIterator,
-  {
-    while let Some(elt) = self.next_back() {
-      if let result @ Some(_) = f(elt) {
-        return result;
-      }
-    }
-    None
-  }
+/// Enumerate helper.
+pub(crate) fn enumerate<I>(iterable: I) -> iter::Enumerate<I::IntoIter>
+where
+  I: IntoIterator,
+{
+  iterable.into_iter().enumerate()
 }
 
-impl<I> IterUtilsExt for I where I: Iterator {}
+/// Reverse helper.
+pub(crate) fn rev<I>(iterable: I) -> iter::Rev<I::IntoIter>
+where
+  I: IntoIterator,
+  I::IntoIter: DoubleEndedIterator,
+{
+  iterable.into_iter().rev()
+}
+
+/// Zip helper.
+pub(crate) fn zip<I, J>(i: I, j: J) -> iter::Zip<I::IntoIter, J::IntoIter>
+where
+  I: IntoIterator,
+  J: IntoIterator,
+{
+  i.into_iter().zip(j)
+}
