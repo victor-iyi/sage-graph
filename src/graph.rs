@@ -304,24 +304,24 @@ where
     // Remove the edge from its in and out lists by replacing it with a
     // link to the next in the list.
     self.change_edge_links(edge_node, e, edge_next);
-    self.remove_edge_adjust_indices(e)
+    Some(self.remove_edge_adjust_indices(e))
   }
 
-  fn remove_edge_adjust_indices(&mut self, e: EdgeIndex<Idx>) -> Option<E> {
+  fn remove_edge_adjust_indices(&mut self, e: EdgeIndex<Idx>) -> E {
     // swap_remove the edge -- only the removed edge and the edge swapped into
     // place are affected and need updating indices.
     let edge = self.edges.swap_remove(e.index());
     let swap = match self.edges.get(e.index()) {
       Some(edge_) => edge_.node,
       // No element needed to be swapped.
-      None => return Some(edge.weight),
+      None => return edge.weight,
     };
     let swapped_e = EdgeIndex::new(self.edges.len());
 
     // Update the edge lists by replacing links to the old index by ref to the
     // new edge index.
     self.change_edge_links(swap, swapped_e, [e, e]);
-    Some(edge.weight)
+   edge.weight
   }
 
   /// For edge `e` with endpoint `edge_node`, replace links to it,
