@@ -89,7 +89,7 @@ trait_template! {
 
         @section self
         /// Return an iterator of the neighbors of node `a`.
-        fn neighbors(self: Self, a: Self::NodeId) -> Self::Neighbors;
+        fn neighbors(self, a: Self::NodeId) -> Self::Neighbors;
     }
 }
 
@@ -527,11 +527,11 @@ trait_template! {
     @section self
     /// Return an upper bound of the node indices in the graph
     /// (suitable for the size of a bitmap).
-    fn node_bound(self: &Self) -> usize;
+    fn node_bound(&self) -> usize;
     /// Convert `a` to an integer index.
-    fn to_index(self: &Self, a: Self::NodeId) -> usize;
+    fn to_index(&self, a: Self::NodeId) -> usize;
     /// Convert `i` to a node index.
-    fn from_index(self: &Self, i: usize) -> Self::NodeId;
+    fn from_index(&self, i: usize) -> Self::NodeId;
   }
 }
 
@@ -543,11 +543,11 @@ trait_template! {
     @section self
     /// Return an upper bound of the edge indices in the graph
     /// (suitable for the size of a bitmap).
-    fn edge_bound(self: &Self) -> usize;
+    fn edge_bound(&self) -> usize;
     /// Convert `a` to an integer index.
-    fn to_index(self: &Self, a: Self::EdgeId) -> usize;
+    fn to_index(&self, a: Self::EdgeId) -> usize;
     /// Convert `i` to an edge index.
-    fn from_index(self: &Self, i: usize) -> Self::EdgeId;
+    fn from_index(&self, i: usize) -> Self::EdgeId;
   }
 }
 
@@ -558,7 +558,7 @@ trait_template! {
   pub trait NodeCount: GraphBase {
     @section self
 
-      fn node_count(self: &Self) -> usize;
+      fn node_count(&self) -> usize;
   }
 }
 
@@ -648,9 +648,9 @@ trait_template! {
     type Map: VisitMap<Self::NodeId>;
     @section self
     /// Create a new visitor map.
-    fn visit_map(self: &Self) -> Self::Map;
+    fn visit_map(&self) -> Self::Map;
     /// Reset the visitor map (and resize to new size of graph if needed).
-    fn reset_map(self: &Self, map: &mut Self::Map);
+    fn reset_map(&self, map: &mut Self::Map);
   }
 }
 
@@ -680,7 +680,6 @@ where
   }
 }
 
-//
 // #[cfg(feature = "stable_graph")]
 // impl<N, E, T, Idx> GraphBase for StableGraph<N, E, T, Idx>
 // where
