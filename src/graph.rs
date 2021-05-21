@@ -317,7 +317,7 @@ where
     // Update the edge lists by replacing links to the old index by ref to the
     // new edge index.
     self.change_edge_links(swap, swapped_e, [e, e]);
-   edge.weight
+    edge.weight
   }
 
   /// For edge `e` with endpoint `edge_node`, replace links to it,

@@ -52,29 +52,29 @@ where
   type EdgeId = G::EdgeId;
 }
 
-// #[cfg(feature = "stable_graph")]
-// impl<'a, N, E: 'a, T, Idx> IntoNeighbors for &'a StableGraph<N, E, T, Idx>
-// where
-//   T: EdgeType,
-//   Idx: Index,
-// {
-//   type Neighbors = stable_graph::Neighbors<'a, E, Idx>;
-//   fn neighbors(self, n: Self::NodeId) -> Self::Neighbors {
-//     (*self).neighbors(n)
-//   }
-// }
-//
-// #[cfg(feature = "graphmap")]
-// impl<'a, N: 'a, E, T> IntoNeighbors for &'a GraphMap<N, E, T>
-// where
-//   N: Copy + Ord + Hash,
-//   T: EdgeType,
-// {
-//   type Neighbors = graphmap::Neighbors<'a, N, T>;
-//   fn neighbors(self, n: Self::NodeId) -> Self::Neighbors {
-//     self.neighbors(n)
-//   }
-// }
+#[cfg(feature = "stable_graph")]
+impl<'a, N, E: 'a, T, Idx> IntoNeighbors for &'a StableGraph<N, E, T, Idx>
+where
+  T: EdgeType,
+  Idx: Index,
+{
+  type Neighbors = stable_graph::Neighbors<'a, E, Idx>;
+  fn neighbors(self, n: Self::NodeId) -> Self::Neighbors {
+    (*self).neighbors(n)
+  }
+}
+
+#[cfg(feature = "graphmap")]
+impl<'a, N: 'a, E, T> IntoNeighbors for &'a GraphMap<N, E, T>
+where
+  N: Copy + Ord + Hash,
+  T: EdgeType,
+{
+  type Neighbors = graphmap::Neighbors<'a, N, T>;
+  fn neighbors(self, n: Self::NodeId) -> Self::Neighbors {
+    self.neighbors(n)
+  }
+}
 
 trait_template! {
     /// Access to the neighbors of each node

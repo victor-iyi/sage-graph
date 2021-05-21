@@ -98,14 +98,14 @@ pub struct NodeIterator<'a, N: 'a, Idx: Index = DefaultIdx> {
   iter: std::iter::Enumerate<std::slice::Iter<'a, Node<N, Idx>>>,
 }
 
-impl<'a, N: 'a, Idx: Index> NodeIterator<'a, N, Idx> {
-  /// Create a new iterator over all `Node`s of a `Graph`.
-  pub fn new(
-    iter: std::iter::Enumerate<std::slice::Iter<'a, Node<N, Idx>>>,
-  ) -> Self {
-    Self { iter }
-  }
-}
+// impl<'a, N: 'a, Idx: Index> NodeIterator<'a, N, Idx> {
+//   /// Create a new iterator over all `Node`s of a `Graph`.
+//   pub fn new(
+//     iter: std::iter::Enumerate<std::slice::Iter<'a, Node<N, Idx>>>,
+//   ) -> Self {
+//     Self { iter }
+//   }
+// }
 
 impl<'a, N, Idx> Iterator for NodeIterator<'a, N, Idx>
 where

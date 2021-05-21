@@ -1,6 +1,6 @@
 [package]
 name = "sage-graph"
-version = "0.1.0"
+version = "0.1.5"
 authors = ["Victor I. Afolabi <javafolabi@gmail.com>"]
 edition = "2018"
 description = "Graph representation in Rust."
@@ -8,7 +8,8 @@ readme = "README.md"
 homepage = "https://github.io/victor-iyi/sage-graph"
 repository = "https://github.com/victor-iyi/sage-graph"
 license = "MIT or Apache"
-keywords = ["graph", "sage-graph", "rust-graph", "node"]
+keywords = ["graph", "sage-graph", "rust-graph"]
+autotests = false
 publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

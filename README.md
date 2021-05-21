@@ -13,6 +13,20 @@ the graph.
 [sage-graph]: https://github.com/victor-iyi/sage-graph/
 [author]: https://medium.com/@victor_iyi/
 
+## Installation
+
+Add the following line to your `Cargo.toml`. *(It uses the default features)*.
+
+```toml
+sage-graph = "1.0"
+```
+
+To use a specific feature, add the feature name as seen below.
+
+```toml
+sage-graph = { version = "1.0", features = ["graphmap", "serde-1"] }
+```
+
 ## Contribution
 
 You are very welcome to modify and use them in your own projects.

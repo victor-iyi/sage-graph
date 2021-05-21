@@ -1,6 +1,3 @@
-#[macro_use]
-use crate::deref;
-
 /// Implement a trait by delegation. By default as if we are delegating
 /// from `&G` to `G`.
 #[macro_export]
