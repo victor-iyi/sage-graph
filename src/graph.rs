@@ -1,3 +1,5 @@
+#![allow(clippy::type_complexity)]
+
 use std::{fmt, marker::PhantomData, mem::size_of};
 
 pub mod direction;
@@ -7,11 +9,7 @@ pub mod index;
 pub mod neighbor;
 pub mod node;
 
-use crate::iterator::{
-  format::{DebugMap, IterFormatExt, NoPretty},
-  util::enumerate,
-};
-
+// crate::graph
 use self::{
   direction::{Directed, Direction, Undirected, DIRECTIONS},
   edge::{
@@ -22,6 +20,11 @@ use self::{
   index::{DefaultIdx, EdgeIndex, GraphIndex, Index, NodeIndex},
   neighbor::{edges_walker_mut, Neighbors},
   node::{Node, NodeIndices, NodeWeightsMut},
+};
+
+use crate::iterator::{
+  format::{DebugMap, IterFormatExt, NoPretty},
+  util::enumerate,
 };
 
 /// [`Graph`] - a graph data structure using an adjacency list representation.
@@ -937,7 +940,7 @@ where
 
   /// Fix up node and edge links after deserialization.
   #[cfg(feature = "serde-1")]
-  fn link_edges(&mut self) -> Result<(), NodeIndex<Idx>> {
+  pub fn link_edges(&mut self) -> Result<(), NodeIndex<Idx>> {
     for (edge_index, edge) in enumerate(&mut self.edges) {
       let a = edge.source();
       let b = edge.target();
