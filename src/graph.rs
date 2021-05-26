@@ -1,3 +1,5 @@
+#![allow(clippy::type_complexity)]
+
 use std::{fmt, marker::PhantomData, mem::size_of};
 
 pub mod direction;
@@ -12,6 +14,7 @@ use crate::iterator::{
   util::enumerate,
 };
 
+// crate::graph
 use self::{
   direction::{Directed, Direction, Undirected, DIRECTIONS},
   edge::{
@@ -937,7 +940,7 @@ where
 
   /// Fix up node and edge links after deserialization.
   #[cfg(feature = "serde-1")]
-  fn link_edges(&mut self) -> Result<(), NodeIndex<Idx>> {
+  pub fn link_edges(&mut self) -> Result<(), NodeIndex<Idx>> {
     for (edge_index, edge) in enumerate(&mut self.edges) {
       let a = edge.source();
       let b = edge.target();

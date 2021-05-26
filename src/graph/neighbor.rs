@@ -38,12 +38,9 @@ where
 
   fn next(&mut self) -> Option<Self::Item> {
     // First; any outgoing edges.
-    match self.edges.get(self.next[0].index()) {
-      Some(edge) => {
-        self.next[0] = edge.next[0];
-        return Some(edge.node[1]);
-      }
-      None => {}
+    if let Some(edge) = self.edges.get(self.next[0].index()) {
+      self.next[0] = edge.next[0];
+      return Some(edge.node[1]);
     }
 
     // Then incoming edges.
@@ -123,13 +120,10 @@ where
     g: &Graph<N, E, T, Idx>,
   ) -> Option<(EdgeIndex<Idx>, NodeIndex<Idx>)> {
     // First any outgoing edges.
-    match g.edges.get(self.next[0].index()) {
-      Some(edge) => {
-        let e = self.next[0];
-        self.next[0] = edge.next[0];
-        return Some((e, edge.node[1]));
-      }
-      None => {}
+    if let Some(edge) = g.edges.get(self.next[0].index()) {
+      let e = self.next[0];
+      self.next[0] = edge.next[0];
+      return Some((e, edge.node[1]));
     }
 
     // Then incoming edges
