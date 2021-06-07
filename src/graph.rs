@@ -9,7 +9,7 @@ pub mod index;
 pub mod neighbor;
 pub mod node;
 
-// crate::graph
+// Crate::graph
 use self::{
   direction::{Directed, Direction, Undirected, DIRECTIONS},
   edge::{
