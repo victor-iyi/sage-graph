@@ -1,6 +1,6 @@
 # Sage Graph
 
-> A graph library written for [Sage Knwoledge Graph][sage]
+> A graph library written for [Sage Knowledge Graph][sage]
 
 [![CI](https://github.com/victor-iyi/sage-graph/actions/workflows/ci.yml/badge.svg)](https://github.com/victor-iyi/sage-graph/actions/workflows/ci.yml)
 [![Audit](https://github.com/victor-iyi/sage-graph/actions/workflows/audit.yml/badge.svg)](https://github.com/victor-iyi/sage-graph/actions/workflows/audit.yml)
