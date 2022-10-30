@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use crate::index_t;
 use std::{fmt, hash::Hash};
 
 /// Graph's default index.
@@ -16,77 +17,10 @@ pub trait Index: Copy + Default + Hash + Ord + fmt::Debug + 'static {
   fn max() -> Self;
 }
 
-// --- usize ---
-impl Index for usize {
-  #[inline(always)]
-  fn new(x: usize) -> Self {
-    x
-  }
-
-  #[inline(always)]
-  fn index(&self) -> Self {
-    *self
-  }
-
-  #[inline(always)]
-  fn max() -> Self {
-    ::std::usize::MAX
-  }
-}
-
-// --- u8 ---
-impl Index for u8 {
-  #[inline(always)]
-  fn new(x: usize) -> Self {
-    x as u8
-  }
-
-  #[inline(always)]
-  fn index(&self) -> usize {
-    *self as usize
-  }
-
-  #[inline(always)]
-  fn max() -> Self {
-    ::std::u8::MAX
-  }
-}
-
-// --- u16 ---
-impl Index for u16 {
-  #[inline(always)]
-  fn new(x: usize) -> Self {
-    x as u16
-  }
-
-  #[inline(always)]
-  fn index(&self) -> usize {
-    *self as usize
-  }
-
-  #[inline(always)]
-  fn max() -> Self {
-    ::std::u16::MAX
-  }
-}
-
-// --- u32 ---
-impl Index for u32 {
-  #[inline(always)]
-  fn new(x: usize) -> Self {
-    x as u32
-  }
-
-  #[inline(always)]
-  fn index(&self) -> usize {
-    *self as usize
-  }
-
-  #[inline(always)]
-  fn max() -> Self {
-    ::std::u32::MAX
-  }
-}
+index_t!(usize);
+index_t!(u8);
+index_t!(u16);
+index_t!(u32);
 
 /// NodeIndex - Index type for [`Node`]
 ///
