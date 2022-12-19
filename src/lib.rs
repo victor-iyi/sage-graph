@@ -6,8 +6,8 @@ mod macros;
 pub use crate::error::{Error, ErrorKind, Result};
 pub use crate::graph::{
   edge::{Edge, EdgeDirection},
-  node::Node,
   index::Index,
+  node::Node,
   DiGraph, Graph, UnDiGraph,
 };
 

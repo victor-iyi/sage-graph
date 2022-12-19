@@ -1,0 +1,21 @@
+# Copyright (c) 2022 Victor I. Afolabi
+#
+# This software is released under the MIT License.
+# https://opensource.org/licenses/MIT
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-added-large-files
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  - repo: https://github.com/doublify/pre-commit-rust
+    rev: master
+    hooks:
+      - id: fmt
+      - id: cargo-check
+      - id: clippy

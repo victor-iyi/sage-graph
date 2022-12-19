@@ -47,5 +47,5 @@ macro_rules! index_t {
         <$ty>::MAX
       }
     }
-  }
+  };
 }
