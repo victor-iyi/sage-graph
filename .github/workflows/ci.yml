@@ -87,35 +87,35 @@ jobs:
           command: sweep
           args: --file
 
-  doc:
-    name: Deploy Docs
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout the source code
-        uses: actions/checkout@master
-
-      - name: Install Rust toolchain and component
-        id: install
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-
-      - name: Build documentation for all crates in the workspace
-        uses: actions-rs/cargo@v1
-        with:
-          command: doc
-          args: --workspace --document-private-items --no-deps
-
-      - name: Upload documentation to GitHub Pages
-        run: |
-          touch target/doc/.nojekyll
-          curl -LsSf https://raw.githubusercontent.com/rust-lang/simpleinfra/master/setup-deploy-keys/src/deploy.rs | rustc - -o /tmp/deploy
-          (cd target/doc && /tmp/deploy)
-        env:
-          GITHUB_DEPLOY_KEY: ${{ secrets.GITHUB_DEPLOY_KEY }}
-        if: matrix.rust == 'stable' && github.ref == 'refs/heads/master'
+  # doc:
+  #   name: Deploy Docs
+  #   runs-on: ubuntu-latest
+  #
+  #   steps:
+  #     - name: Checkout the source code
+  #       uses: actions/checkout@master
+  #
+  #     - name: Install Rust toolchain and component
+  #       id: install
+  #       uses: actions-rs/toolchain@v1
+  #       with:
+  #         toolchain: stable
+  #         override: true
+  #
+  #     - name: Build documentation for all crates in the workspace
+  #       uses: actions-rs/cargo@v1
+  #       with:
+  #         command: doc
+  #         args: --workspace --document-private-items --no-deps
+  #
+  #     - name: Upload documentation to GitHub Pages
+  #       run: |
+  #         touch target/doc/.nojekyll
+  #         curl -LsSf https://raw.githubusercontent.com/rust-lang/simpleinfra/master/setup-deploy-keys/src/deploy.rs | rustc - -o /tmp/deploy
+  #         (cd target/doc && /tmp/deploy)
+  #       env:
+  #         GITHUB_DEPLOY_KEY: ${{ secrets.GITHUB_DEPLOY_KEY }}
+  #       if: matrix.rust == 'stable' && github.ref == 'refs/heads/master'
 
   fmt:
     name: Rustfmt
