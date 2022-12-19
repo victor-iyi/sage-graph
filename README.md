@@ -10,7 +10,7 @@ Sage is a graph library written in Rust for the [Sage Knowledge Graph][sage] by
 the graph.
 
 [sage]: https://github.com/victor-iyi/sage/
-[sage-graph]: https://github.com/victor-iyi/sage-graph/
+<!-- [sage-graph]: https://github.com/victor-iyi/sage-graph/ -->
 [author]: https://medium.com/@victor_iyi/
 
 ## Contribution
