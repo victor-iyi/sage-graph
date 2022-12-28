@@ -113,7 +113,7 @@ impl<Idx: Index> From<Idx> for EdgeIndex<Idx> {
 // EdgeIndex(sg:E<1234>)
 impl<Idx: fmt::Debug> fmt::Debug for EdgeIndex<Idx> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    write!(f, "EdgeIndex(sg:E<{:?})", self.0)
+    write!(f, "EdgeIndex(sg:E<{:?}>)", self.0)
   }
 }
 
