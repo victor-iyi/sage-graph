@@ -40,6 +40,7 @@ impl<E, Idx: Index> Edge<E, Idx> {
 }
 
 pub trait EdgeDirection {
+  /// Determine if the `EdgeDirection` is a directed edge.
   fn is_directed() -> bool;
 }
 
@@ -53,6 +54,6 @@ impl EdgeDirection for Directed {
 impl EdgeDirection for Undirected {
   #[inline]
   fn is_directed() -> bool {
-    true
+    false
   }
 }

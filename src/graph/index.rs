@@ -21,6 +21,7 @@ index_t!(usize);
 index_t!(u8);
 index_t!(u16);
 index_t!(u32);
+index_t!(u64);
 
 /// NodeIndex - Index type for [`Node`]
 ///
@@ -71,9 +72,9 @@ impl<Idx: fmt::Debug> fmt::Debug for NodeIndex<Idx> {
 }
 
 // sg:N<1234>
-impl<Idx: fmt::Debug> fmt::Display for NodeIndex<Idx> {
+impl<Idx: fmt::Display> fmt::Display for NodeIndex<Idx> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    write!(f, "sg:N<{:?}>", self.0)
+    write!(f, "sg:N<{}>", self.0)
   }
 }
 
@@ -118,9 +119,9 @@ impl<Idx: fmt::Debug> fmt::Debug for EdgeIndex<Idx> {
 }
 
 // sg:E<1234>
-impl<Idx: fmt::Debug> fmt::Display for EdgeIndex<Idx> {
+impl<Idx: fmt::Display> fmt::Display for EdgeIndex<Idx> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    write!(f, "sg:E<{:?}>", self.0)
+    write!(f, "sg:E<{}>", self.0)
   }
 }
 
